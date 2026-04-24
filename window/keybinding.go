@@ -1,6 +1,11 @@
-package windowing
+package window
 
-import "gioui.org/io/key"
+import (
+	"runtime"
+	"strings"
+
+	"gioui.org/io/key"
+)
 
 func keyToBytes(e key.Event) []byte {
 	// Modifiers
@@ -75,4 +80,24 @@ func keyToBytes(e key.Event) []byte {
 	}
 
 	return nil
+}
+
+func isCopyShortcut(e key.Event) bool {
+	if !e.Modifiers.Contain(key.ModShortcut) {
+		return false
+	}
+	if runtime.GOOS != "darwin" && !e.Modifiers.Contain(key.ModShift) {
+		return false
+	}
+	return strings.EqualFold(string(e.Name), "c")
+}
+
+func isPasteShortcut(e key.Event) bool {
+	if !e.Modifiers.Contain(key.ModShortcut) {
+		return false
+	}
+	if runtime.GOOS != "darwin" && !e.Modifiers.Contain(key.ModShift) {
+		return false
+	}
+	return strings.EqualFold(string(e.Name), "v")
 }

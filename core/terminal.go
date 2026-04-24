@@ -1,25 +1,49 @@
-package terminal
+package core
 
-import "unicode/utf8"
+import (
+	"unicode/utf8"
+
+	"optimus/ansi"
+	"optimus/buffer"
+)
 
 type Terminal struct {
-	buf     *Buffer
+	buf     *buffer.Buffer
 	parser  *Parser
 	utf8Buf [4]byte
 	utf8Len int
 	utf8Rem int
+
+	modeState ansi.ModeState
+}
+
+type MouseProtocol struct {
+	Enabled bool
+	Drag    bool
+	Motion  bool
+	SGR     bool
 }
 
 func New(cols, rows int) *Terminal {
 	return &Terminal{
-		buf:    NewBuffer(cols, rows),
+		buf:    buffer.New(cols, rows),
 		parser: NewParser(),
 	}
 }
 
-func (terminal *Terminal) Buffer() *Buffer { return terminal.buf }
+func (terminal *Terminal) Buffer() *buffer.Buffer { return terminal.buf }
 
 func (terminal *Terminal) Resize(cols, rows int) { terminal.buf.Resize(cols, rows) }
+
+func (terminal *Terminal) MouseProtocol() MouseProtocol {
+	enabled := terminal.modeState.MouseReport || terminal.modeState.MouseDrag || terminal.modeState.MouseMotion || terminal.modeState.MouseSGR
+	return MouseProtocol{
+		Enabled: enabled,
+		Drag:    terminal.modeState.MouseDrag,
+		Motion:  terminal.modeState.MouseMotion,
+		SGR:     terminal.modeState.MouseSGR,
+	}
+}
 
 func (terminal *Terminal) Write(data []byte) {
 	for _, b := range data {
@@ -65,7 +89,7 @@ func (terminal *Terminal) applyActions(actions []Action) {
 			terminal.handleControl(a.Rune)
 
 		case ActionCSI:
-			terminal.handleCSI(a.Cmd, a.Params)
+			terminal.handleCSI(a.Cmd, a.Params, a.Private)
 
 		case ActionESC:
 			terminal.handleESC(a.Cmd)

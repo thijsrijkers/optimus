@@ -1,9 +1,9 @@
-package windowing
+package window
 
 import (
 	"image"
 	"image/color"
-	"optimus/terminal"
+	core "optimus/core"
 	"unicode/utf8"
 
 	"gioui.org/font"
@@ -15,10 +15,14 @@ import (
 	"gioui.org/widget/material"
 )
 
-func drawCells(context layout.Context, terminal *terminal.Terminal, theme *material.Theme, cellW, cellH int) {
+func drawCells(context layout.Context, terminal *core.Terminal, theme *material.Theme, cellW, cellH int, selectionActive bool, selStartCol, selStartRow, selEndCol, selEndRow int) {
 	buf := terminal.Buffer()
 	cols := buf.Cols()
 	rows := buf.Rows()
+	if selectionActive && (selStartRow > selEndRow || (selStartRow == selEndRow && selStartCol > selEndCol)) {
+		selStartCol, selEndCol = selEndCol, selStartCol
+		selStartRow, selEndRow = selEndRow, selStartRow
+	}
 
 	for row := 0; row < rows; row++ {
 		for col := 0; col < cols; col++ {
@@ -39,6 +43,13 @@ func drawCells(context layout.Context, terminal *terminal.Terminal, theme *mater
 				clip.Rect(cellRect).Op(),
 			)
 
+			if selectionActive && isCellSelected(col, row, selStartCol, selStartRow, selEndCol, selEndRow) {
+				paint.FillShape(context.Ops,
+					color.NRGBA{R: 0x5A, G: 0x7A, B: 0xA8, A: 0x88},
+					clip.Rect(cellRect).Op(),
+				)
+			}
+
 			// Draw cursor block
 			if col == buf.CursorCol && row == buf.CursorRow {
 				paint.FillShape(context.Ops,
@@ -57,6 +68,22 @@ func drawCells(context layout.Context, terminal *terminal.Terminal, theme *mater
 			}
 		}
 	}
+}
+
+func isCellSelected(col, row, startCol, startRow, endCol, endRow int) bool {
+	if row < startRow || row > endRow {
+		return false
+	}
+	if startRow == endRow {
+		return row == startRow && col >= startCol && col <= endCol
+	}
+	if row == startRow {
+		return col >= startCol
+	}
+	if row == endRow {
+		return col <= endCol
+	}
+	return true
 }
 
 func glyph(context layout.Context, theme *material.Theme, r rune, x, y int, foreground color.RGBA, bold bool, cellW, cellH int) {

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"optimus/windowing"
+	"optimus/gui"
 )
 
 func main() {
@@ -11,5 +11,5 @@ func main() {
 	if shell == "" {
 		shell = "/bin/zsh"
 	}
-	windowing.CreateWindow(shell)
+	gui.CreateWindow(shell)
 }

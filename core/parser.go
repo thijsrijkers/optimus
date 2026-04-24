@@ -1,4 +1,4 @@
-package terminal 
+package core
 
 import "fmt"
 
@@ -18,21 +18,22 @@ const (
 
 // Action is what the parser tells the terminal to do.
 type Action struct {
-	Type   ActionType
-	Params []int  // numeric params (e.g. [1;32] → [1, 32])
-	Rune   rune   // for Print actions
-	Cmd    byte   // final byte of CSI/ESC sequence
-	OSCRaw string // raw OSC payload (title changes, etc.)
+	Type    ActionType
+	Params  []int  // numeric params (e.g. [1;32] → [1, 32])
+	Rune    rune   // for Print actions
+	Cmd     byte   // final byte of CSI/ESC sequence
+	Private bool   // CSI private mode (e.g. ESC[?1049h)
+	OSCRaw  string // raw OSC payload (title changes, etc.)
 }
 
 type ActionType int
 
 const (
-	ActionPrint    ActionType = iota // print a rune to screen
-	ActionExecute                    // C0 control (BEL, BS, HT, LF, CR, etc.)
-	ActionCSI                        // CSI sequence complete  (ESC [ ... cmd)
-	ActionESC                        // ESC sequence (ESC cmd)
-	ActionOSC                        // OSC string complete
+	ActionPrint   ActionType = iota // print a rune to screen
+	ActionExecute                   // C0 control (BEL, BS, HT, LF, CR, etc.)
+	ActionCSI                       // CSI sequence complete  (ESC [ ... cmd)
+	ActionESC                       // ESC sequence (ESC cmd)
+	ActionOSC                       // OSC string complete
 )
 
 func (a ActionType) String() string {
@@ -40,12 +41,13 @@ func (a ActionType) String() string {
 }
 
 type Parser struct {
-	state       State
-	params      []int
+	state        State
+	params       []int
 	currentParam int
-	hasParam    bool
+	hasParam     bool
 	intermediate []byte
-	oscBuf      []byte
+	oscBuf       []byte
+	privateCSI   bool
 }
 
 func NewParser() *Parser {
@@ -95,6 +97,9 @@ func (p *Parser) Feed(b byte) []Action {
 
 	case StateCSIEntry, StateCSIParam:
 		switch {
+		case b == '?' && p.state == StateCSIEntry:
+			p.privateCSI = true
+			p.state = StateCSIParam
 		case b >= '0' && b <= '9':
 			p.currentParam = p.currentParam*10 + int(b-'0')
 			p.hasParam = true
@@ -115,7 +120,8 @@ func (p *Parser) Feed(b byte) []Action {
 			params := make([]int, len(p.params))
 			copy(params, p.params)
 			p.state = StateGround
-			return []Action{{Type: ActionCSI, Cmd: b, Params: params}}
+			private := p.privateCSI
+			return []Action{{Type: ActionCSI, Cmd: b, Params: params, Private: private}}
 		case b == 0x1B:
 			p.state = StateEscape
 		}
@@ -154,6 +160,7 @@ func (p *Parser) enterCSI() {
 	p.currentParam = 0
 	p.hasParam = false
 	p.intermediate = p.intermediate[:0]
+	p.privateCSI = false
 }
 
 func (p *Parser) FeedRune(r rune) []Action {
@@ -171,6 +178,9 @@ func (a Action) String() string {
 	case ActionExecute:
 		return fmt.Sprintf("Execute(0x%02X)", a.Rune)
 	case ActionCSI:
+		if a.Private {
+			return fmt.Sprintf("CSI(?%q params=%v)", a.Cmd, a.Params)
+		}
 		return fmt.Sprintf("CSI(%q params=%v)", a.Cmd, a.Params)
 	case ActionESC:
 		return fmt.Sprintf("ESC(%q)", a.Cmd)
