@@ -101,3 +101,34 @@ func isPasteShortcut(e key.Event) bool {
 	}
 	return strings.EqualFold(string(e.Name), "v")
 }
+
+func isNewTabShortcut(e key.Event) bool {
+	if !e.Modifiers.Contain(key.ModShortcut) {
+		return false
+	}
+	return strings.EqualFold(string(e.Name), "t")
+}
+
+func isCloseTabShortcut(e key.Event) bool {
+	if !e.Modifiers.Contain(key.ModShortcut) {
+		return false
+	}
+	return strings.EqualFold(string(e.Name), "w")
+}
+
+func isNextTabShortcut(e key.Event) bool {
+	if !e.Modifiers.Contain(key.ModShortcut) {
+		return false
+	}
+	if e.Modifiers.Contain(key.ModShift) {
+		return false
+	}
+	return e.Name == key.NameTab
+}
+
+func isPrevTabShortcut(e key.Event) bool {
+	if !e.Modifiers.Contain(key.ModShortcut) || !e.Modifiers.Contain(key.ModShift) {
+		return false
+	}
+	return e.Name == key.NameTab
+}

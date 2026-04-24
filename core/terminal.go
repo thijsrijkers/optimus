@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"unicode/utf8"
 
 	"optimus/ansi"
@@ -15,6 +16,7 @@ type Terminal struct {
 	utf8Rem int
 
 	modeState ansi.ModeState
+	title     string
 }
 
 type MouseProtocol struct {
@@ -44,6 +46,8 @@ func (terminal *Terminal) MouseProtocol() MouseProtocol {
 		SGR:     terminal.modeState.MouseSGR,
 	}
 }
+
+func (terminal *Terminal) Title() string { return terminal.title }
 
 func (terminal *Terminal) Write(data []byte) {
 	for _, b := range data {
@@ -94,6 +98,22 @@ func (terminal *Terminal) applyActions(actions []Action) {
 		case ActionESC:
 			terminal.handleESC(a.Cmd)
 
+		case ActionOSC:
+			terminal.handleOSC(a.OSCRaw)
+
 		}
+	}
+}
+
+func (terminal *Terminal) handleOSC(raw string) {
+	if raw == "" {
+		return
+	}
+	parts := strings.SplitN(raw, ";", 2)
+	if len(parts) != 2 {
+		return
+	}
+	if parts[0] == "0" || parts[0] == "2" {
+		terminal.title = parts[1]
 	}
 }

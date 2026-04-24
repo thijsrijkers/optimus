@@ -5,10 +5,8 @@ import (
 	"image/color"
 	"io"
 	"strings"
-	"sync"
 
-	core "optimus/core"
-	"optimus/pty"
+	"optimus/tabs"
 
 	"gioui.org/app"
 	"gioui.org/io/clipboard"
@@ -54,29 +52,14 @@ func Run(window *app.Window, shell string) error {
 	selStartCol, selStartRow := 0, 0
 	selEndCol, selEndRow := 0, 0
 	lastButtons := pointer.Buttons(0)
+	activeTabID := -1
+	tabHits := []tabHit{}
 
-	pty, err := pty.New(shell, initCols, initRows)
+	tabManager, err := tabs.New(shell, initCols, initRows, window.Invalidate)
 	if err != nil {
 		return err
 	}
-	defer pty.Close()
-
-	terminal := core.New(initCols, initRows)
-	var mu sync.Mutex
-
-	go func() {
-		buf := make([]byte, 4096)
-		for {
-			n, err := pty.Read(buf)
-			if err != nil {
-				return
-			}
-			mu.Lock()
-			terminal.Write(buf[:n])
-			mu.Unlock()
-			window.Invalidate()
-		}
-	}()
+	defer tabManager.CloseAll()
 
 	theme := material.NewTheme()
 
@@ -85,6 +68,16 @@ func Run(window *app.Window, shell string) error {
 		case app.DestroyEvent:
 			return event.Err
 		case app.FrameEvent:
+			session := tabManager.Active()
+			if session == nil {
+				continue
+			}
+			if session.ID() != activeTabID {
+				activeTabID = session.ID()
+				selecting = false
+				hasSelection = false
+			}
+			term := session.Terminal()
 			context := app.NewContext(&operationList, event)
 			ioevent.Op(context.Ops, keyboardTag)
 			ioevent.Op(context.Ops, clipboardTag)
@@ -96,6 +89,9 @@ func Run(window *app.Window, shell string) error {
 				context.Execute(key.FocusCmd{Tag: keyboardTag})
 			}
 			cellW, cellH := cellMetrics(context)
+			paint.Fill(&operationList, color.NRGBA{R: 0x28, G: 0x2C, B: 0x34, A: 0xFF})
+			tabBarH, hits := drawTabBar(context, theme, tabManager.List())
+			tabHits = hits
 
 			// Keyboard events
 			for {
@@ -119,14 +115,34 @@ func Run(window *app.Window, shell string) error {
 				switch ev := keyboardEvent.(type) {
 				case key.Event:
 					if ev.State == key.Press {
+						if isNewTabShortcut(ev) {
+							_ = tabManager.NewTab()
+							selecting, hasSelection = false, false
+							continue
+						}
+						if isCloseTabShortcut(ev) {
+							tabManager.CloseActive()
+							selecting, hasSelection = false, false
+							continue
+						}
+						if isPrevTabShortcut(ev) {
+							tabManager.Prev()
+							selecting, hasSelection = false, false
+							continue
+						}
+						if isNextTabShortcut(ev) {
+							tabManager.Next()
+							selecting, hasSelection = false, false
+							continue
+						}
 						if !isCopyShortcut(ev) && !isPasteShortcut(ev) {
 							hasSelection = false
 						}
 						if isCopyShortcut(ev) {
 							if hasSelection {
-								mu.Lock()
-								text := selectionText(terminal.Buffer(), selStartCol, selStartRow, selEndCol, selEndRow)
-								mu.Unlock()
+								session.Lock()
+								text := selectionText(term.Buffer(), selStartCol, selStartRow, selEndCol, selEndRow)
+								session.Unlock()
 								if text != "" {
 									context.Execute(clipboard.WriteCmd{Type: "text/plain", Data: io.NopCloser(strings.NewReader(text))})
 								}
@@ -138,12 +154,12 @@ func Run(window *app.Window, shell string) error {
 							continue
 						}
 						if seq := keyToBytes(ev); seq != nil {
-							pty.Write(seq)
+							session.WriteInput(seq)
 						}
 					}
 				case key.EditEvent:
 					if ev.Text != "" {
-						pty.Write([]byte(ev.Text))
+						session.WriteInput([]byte(ev.Text))
 					}
 				case transfer.DataEvent:
 					if ev.Type == "text/plain" {
@@ -151,16 +167,36 @@ func Run(window *app.Window, shell string) error {
 						data, err := io.ReadAll(r)
 						r.Close()
 						if err == nil && len(data) > 0 {
-							pty.Write(data)
+							session.WriteInput(data)
 						}
 					}
 				case pointer.Event:
+					if int(ev.Position.Y) < tabBarH {
+						if ev.Kind == pointer.Press && ev.Buttons.Contain(pointer.ButtonPrimary) {
+							x := int(ev.Position.X)
+							for _, hit := range tabHits {
+								if x >= hit.startX && x <= hit.endX {
+									if hit.addNew {
+										_ = tabManager.NewTab()
+									} else if hit.close {
+										tabManager.CloseAt(hit.index)
+									} else {
+										tabManager.ActivateAt(hit.index)
+									}
+									selecting, hasSelection = false, false
+									break
+								}
+							}
+						}
+						continue
+					}
+					ev.Position.Y -= float32(tabBarH)
 					col, row := pointerToCell(ev, cellW, cellH)
-					mu.Lock()
-					buf := terminal.Buffer()
+					session.Lock()
+					buf := term.Buffer()
 					maxCol := buf.Cols() - 1
 					maxRow := buf.Rows() - 1
-					mu.Unlock()
+					session.Unlock()
 					if col < 0 {
 						col = 0
 					}
@@ -174,13 +210,13 @@ func Run(window *app.Window, shell string) error {
 						row = maxRow
 					}
 
-					proto := terminal.MouseProtocol()
+					proto := term.MouseProtocol()
 					pressed := ev.Buttons &^ lastButtons
 					released := lastButtons &^ ev.Buttons
 
 					forceSelection := ev.Modifiers.Contain(key.ModShift)
 					if proto.Enabled && !forceSelection {
-						sendPointerToPTY(pty, ev, pressed, released, col, row, proto)
+						sendPointerToPTY(session, ev, pressed, released, col, row, proto)
 					} else {
 						if ev.Kind == pointer.Press && pressed.Contain(pointer.ButtonPrimary) {
 							selecting = true
@@ -194,9 +230,9 @@ func Run(window *app.Window, shell string) error {
 						if selecting && ev.Kind == pointer.Release && released.Contain(pointer.ButtonPrimary) {
 							selecting = false
 							selEndCol, selEndRow = col, row
-							mu.Lock()
-							text := selectionText(terminal.Buffer(), selStartCol, selStartRow, selEndCol, selEndRow)
-							mu.Unlock()
+							session.Lock()
+							text := selectionText(term.Buffer(), selStartCol, selStartRow, selEndCol, selEndRow)
+							session.Unlock()
 							if text != "" {
 								hasSelection = true
 								context.Execute(clipboard.WriteCmd{
@@ -217,24 +253,20 @@ func Run(window *app.Window, shell string) error {
 
 			// Drawing to screen
 			cols := context.Constraints.Max.X / cellW
-			rows := context.Constraints.Max.Y / cellH
+			rows := (context.Constraints.Max.Y - tabBarH) / cellH
 			if cols < 1 {
 				cols = 1
 			}
 			if rows < 1 {
 				rows = 1
 			}
-			mu.Lock()
-			terminal.Resize(cols, rows)
-			mu.Unlock()
-			pty.Resize(cols, rows)
+			tabManager.ResizeAll(cols, rows)
 
-			paint.Fill(&operationList, color.NRGBA{R: 0x28, G: 0x2C, B: 0x34, A: 0xFF})
-
-			mu.Lock()
+			session.Lock()
+			deferY := op.Offset(image.Point{Y: tabBarH}).Push(context.Ops)
 			drawCells(
 				context,
-				terminal,
+				term,
 				theme,
 				cellW,
 				cellH,
@@ -244,7 +276,8 @@ func Run(window *app.Window, shell string) error {
 				selEndCol,
 				selEndRow,
 			)
-			mu.Unlock()
+			deferY.Pop()
+			session.Unlock()
 
 			event.Frame(context.Ops)
 		}

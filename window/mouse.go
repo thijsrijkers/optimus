@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	core "optimus/core"
-	"optimus/pty"
+	"optimus/tabs"
 
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
@@ -14,7 +14,7 @@ func pointerToCell(ev pointer.Event, cellW, cellH int) (int, int) {
 	return int(ev.Position.X) / cellW, int(ev.Position.Y) / cellH
 }
 
-func sendPointerToPTY(ptyDevice *pty.PTY, ev pointer.Event, pressed, released pointer.Buttons, col, row int, proto core.MouseProtocol) {
+func sendPointerToPTY(session *tabs.Session, ev pointer.Event, pressed, released pointer.Buttons, col, row int, proto core.MouseProtocol) {
 	cx := col + 1
 	cy := row + 1
 	mods := 0
@@ -48,7 +48,7 @@ func sendPointerToPTY(ptyDevice *pty.PTY, ev pointer.Event, pressed, released po
 				suffix = "m"
 			}
 			seq := fmt.Sprintf("\x1b[<%d;%d;%d%s", code+mods, cx, cy, suffix)
-			ptyDevice.Write([]byte(seq))
+			session.WriteInput([]byte(seq))
 			return
 		}
 		cb := code + mods
@@ -64,7 +64,7 @@ func sendPointerToPTY(ptyDevice *pty.PTY, ev pointer.Event, pressed, released po
 			y = 255
 		}
 		seq := []byte{0x1b, '[', 'M', byte(cb + 32), byte(x), byte(y)}
-		ptyDevice.Write(seq)
+		session.WriteInput(seq)
 	}
 
 	if ev.Kind == pointer.Scroll {
