@@ -1,9 +1,7 @@
 package main
 
-import (
-	"fmt"
-)
+import "optimus/windowing"
 
 func main() {
-	fmt.Println("hi")
+	windowing.CreateWindow("/bin/sh")
 }
