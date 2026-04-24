@@ -34,59 +34,6 @@ What is still evolving:
 - Add configurable settings (font family/size, theme, keybinds)
 - Add integration tests around parser + buffer state transitions
 
-## Features
-
-Current implemented features include:
-
-- PTY-backed shell session in a native Gio window
-- Multi-tab support:
-  - create new tab
-  - switch tabs
-  - close tabs
-  - click tab to activate
-  - click `+` to create
-  - click `×` to close
-- Tab titles:
-  - OSC title support (`OSC 0` / `OSC 2`)
-  - fallback to foreground process name (e.g. `nvim`, `bash`)
-- Keyboard input:
-  - printable text + control keys
-  - Ctrl shortcuts mapping
-  - tab/window shortcuts
-- Mouse support:
-  - terminal mouse protocol forwarding (including SGR mode)
-  - local selection + clipboard copy/paste when not captured by app mode
-- Clipboard integration:
-  - copy selection
-  - paste into PTY
-- Rendering:
-  - cell-based text renderer
-  - cursor rendering
-  - color attributes (ANSI 16 + 256 + truecolor via SGR)
-  - Ghostty-inspired tab pill styling
-- Buffer behavior:
-  - cursor movement
-  - erase operations
-  - line/char insert-delete variants
-  - scrolling regions
-  - alternate screen support
-
-## Keyboard Shortcuts
-
-- `Cmd/Ctrl + T`: New tab
-- `Cmd/Ctrl + W`: Close active tab
-- `Cmd/Ctrl + Tab`: Next tab
-- `Cmd/Ctrl + Shift + Tab`: Previous tab
-- `Cmd/Ctrl + C`: Copy selection
-- `Cmd/Ctrl + V`: Paste
-- `Cmd/Ctrl + +` (or `=`): Zoom in
-- `Cmd/Ctrl + -`: Zoom out
-
-Notes:
-
-- On non-macOS, copy/paste follows terminal-friendly modifier behavior from current keybinding logic.
-- In terminal apps that enable mouse reporting (e.g. Neovim), Shift-modified mouse can be used to force local selection behavior.
-
 ## Build and Run
 
 Requirements:
@@ -132,3 +79,19 @@ Note: when launched as a macOS app, Optimus starts your shell as a login shell s
 ### Linux - Windows
 
 Coming soon.
+
+## Keyboard Shortcuts
+
+- `Cmd/Ctrl + T`: New tab
+- `Cmd/Ctrl + W`: Close active tab
+- `Cmd/Ctrl + Tab`: Next tab
+- `Cmd/Ctrl + Shift + Tab`: Previous tab
+- `Cmd/Ctrl + C`: Copy selection
+- `Cmd/Ctrl + V`: Paste
+- `Cmd/Ctrl + +` (or `=`): Zoom in
+- `Cmd/Ctrl + -`: Zoom out
+
+Notes:
+
+- On non-macOS, copy/paste follows terminal-friendly modifier behavior from current keybinding logic.
+- In terminal apps that enable mouse reporting (e.g. Neovim), Shift-modified mouse can be used to force local selection behavior.
