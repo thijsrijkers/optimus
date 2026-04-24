@@ -48,6 +48,9 @@ func ApplySGR(attr buffer.Attr, params []int) buffer.Attr {
 			if i+2 < len(params) && params[i+1] == 5 {
 				attr.FG = ansi256[params[i+2]]
 				i += 2
+			} else if i+5 < len(params) && params[i+1] == 2 && params[i+2] == 0 {
+				attr.FG = color.RGBA{R: uint8(params[i+3]), G: uint8(params[i+4]), B: uint8(params[i+5]), A: 0xFF}
+				i += 5
 			} else if i+4 < len(params) && params[i+1] == 2 {
 				attr.FG = color.RGBA{R: uint8(params[i+2]), G: uint8(params[i+3]), B: uint8(params[i+4]), A: 0xFF}
 				i += 4
@@ -56,6 +59,9 @@ func ApplySGR(attr buffer.Attr, params []int) buffer.Attr {
 			if i+2 < len(params) && params[i+1] == 5 {
 				attr.BG = ansi256[params[i+2]]
 				i += 2
+			} else if i+5 < len(params) && params[i+1] == 2 && params[i+2] == 0 {
+				attr.BG = color.RGBA{R: uint8(params[i+3]), G: uint8(params[i+4]), B: uint8(params[i+5]), A: 0xFF}
+				i += 5
 			} else if i+4 < len(params) && params[i+1] == 2 {
 				attr.BG = color.RGBA{R: uint8(params[i+2]), G: uint8(params[i+3]), B: uint8(params[i+4]), A: 0xFF}
 				i += 4

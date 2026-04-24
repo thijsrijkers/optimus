@@ -104,7 +104,7 @@ func (p *Parser) Feed(b byte) []Action {
 			p.currentParam = p.currentParam*10 + int(b-'0')
 			p.hasParam = true
 			p.state = StateCSIParam
-		case b == ';':
+		case b == ';' || b == ':':
 			p.params = append(p.params, p.currentParam)
 			p.currentParam = 0
 			p.hasParam = false
