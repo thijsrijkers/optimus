@@ -132,3 +132,18 @@ func isPrevTabShortcut(e key.Event) bool {
 	}
 	return e.Name == key.NameTab
 }
+
+func isZoomInShortcut(e key.Event) bool {
+	if !e.Modifiers.Contain(key.ModShortcut) {
+		return false
+	}
+	n := string(e.Name)
+	return n == "+" || n == "="
+}
+
+func isZoomOutShortcut(e key.Event) bool {
+	if !e.Modifiers.Contain(key.ModShortcut) {
+		return false
+	}
+	return string(e.Name) == "-"
+}

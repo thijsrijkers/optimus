@@ -15,7 +15,7 @@ import (
 	"gioui.org/widget/material"
 )
 
-func drawCells(context layout.Context, terminal *core.Terminal, theme *material.Theme, cellW, cellH int, selectionActive bool, selStartCol, selStartRow, selEndCol, selEndRow int) {
+func drawCells(context layout.Context, terminal *core.Terminal, theme *material.Theme, fontSize int, cellW, cellH int, selectionActive bool, selStartCol, selStartRow, selEndCol, selEndRow int) {
 	buf := terminal.Buffer()
 	cols := buf.Cols()
 	rows := buf.Rows()
@@ -64,7 +64,7 @@ func drawCells(context layout.Context, terminal *core.Terminal, theme *material.
 				if cell.Attr.Reverse {
 					fg = cell.Attr.BG
 				}
-				glyph(context, theme, cell.Char, x, y, fg, cell.Attr.Bold, cellW, cellH)
+				glyph(context, theme, cell.Char, x, y, fg, cell.Attr.Bold, fontSize, cellW, cellH)
 			}
 		}
 	}
@@ -86,7 +86,7 @@ func isCellSelected(col, row, startCol, startRow, endCol, endRow int) bool {
 	return true
 }
 
-func glyph(context layout.Context, theme *material.Theme, r rune, x, y int, foreground color.RGBA, bold bool, cellW, cellH int) {
+func glyph(context layout.Context, theme *material.Theme, r rune, x, y int, foreground color.RGBA, bold bool, fontSize int, cellW, cellH int) {
 	// Encode the rune as a  for the label widget.
 	var buf [4]byte
 	n := utf8.EncodeRune(buf[:], r)

@@ -18,18 +18,19 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
 	"gioui.org/widget/material"
 )
 
 const (
-	fontSize   = 13
-	fontFamily = "Menlo"
-	initCols   = 80
-	initRows   = 24
+	defaultFontSize = 13
+	fontFamily      = "Menlo"
+	initCols        = 80
+	initRows        = 24
 )
 
-func cellMetrics(context layout.Context) (cellW, cellH int) {
-	fontPx := context.Sp(fontSize)
+func cellMetrics(context layout.Context, fontSize int) (cellW, cellH int) {
+	fontPx := context.Sp(unit.Sp(fontSize))
 	if fontPx < 12 {
 		fontPx = 12
 	}
@@ -54,6 +55,7 @@ func Run(window *app.Window, shell string) error {
 	lastButtons := pointer.Buttons(0)
 	activeTabID := -1
 	tabHits := []tabHit{}
+	uiFontSize := defaultFontSize
 
 	tabManager, err := tabs.New(shell, initCols, initRows, window.Invalidate)
 	if err != nil {
@@ -88,7 +90,7 @@ func Run(window *app.Window, shell string) error {
 			if !context.Focused(keyboardTag) {
 				context.Execute(key.FocusCmd{Tag: keyboardTag})
 			}
-			cellW, cellH := cellMetrics(context)
+			cellW, cellH := cellMetrics(context, uiFontSize)
 			paint.Fill(&operationList, color.NRGBA{R: 0x28, G: 0x2C, B: 0x34, A: 0xFF})
 			tabBarH, hits := drawTabBar(context, theme, tabManager.List())
 			tabHits = hits
@@ -115,6 +117,18 @@ func Run(window *app.Window, shell string) error {
 				switch ev := keyboardEvent.(type) {
 				case key.Event:
 					if ev.State == key.Press {
+						if isZoomInShortcut(ev) {
+							if uiFontSize < 28 {
+								uiFontSize++
+							}
+							continue
+						}
+						if isZoomOutShortcut(ev) {
+							if uiFontSize > 9 {
+								uiFontSize--
+							}
+							continue
+						}
 						if isNewTabShortcut(ev) {
 							_ = tabManager.NewTab()
 							selecting, hasSelection = false, false
@@ -268,6 +282,7 @@ func Run(window *app.Window, shell string) error {
 				context,
 				term,
 				theme,
+				uiFontSize,
 				cellW,
 				cellH,
 				hasSelection || selecting,
