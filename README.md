@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="etc/app_icon.png" alt="Optimus logo" width="180" />
+  <img src="etc/transparent.png" alt="Optimus logo" width="180" />
 </p>
 
 <h1 align="center">Optimus</h1>
@@ -127,23 +127,8 @@ Launch it from Finder (Applications) or with:
 open /Applications/Optimus.app
 ```
 
-Note: when launched as a macOS app, Optimus starts your shell as a login shell so your profile configuration (`~/.zprofile`, `~/.zshrc`, etc.) is loaded. This helps keep completion and TUI behavior (like Neovim) consistent with Terminal/iTerm.
+Note: when launched as a macOS app, Optimus starts your shell as a login shell so your profile configuration (`~/.zprofile`, `~/.zshrc`, etc.) is loaded. This helps keep completion and TUI behavior (like Neovim) consistent.
 
-### Linux
-
-Coming soon.
-
-### Windows
+### Linux - Windows
 
 Coming soon.
-
-Optional overrides:
-
-```bash
-APP_NAME="Optimus" \
-BUNDLE_ID="dev.optimus.app" \
-VERSION="0.1.0" \
-ICON_PNG="$(pwd)/etc/app_icon.png" \
-OUT_DIR="$(pwd)/dist/macos" \
-./etc/macos/build_app_bundle.sh
-```
