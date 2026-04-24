@@ -1,7 +1,15 @@
 package main
 
-import "optimus/windowing"
+import (
+	"os"
+
+	"optimus/windowing"
+)
 
 func main() {
-	windowing.CreateWindow("/bin/sh")
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/zsh"
+	}
+	windowing.CreateWindow(shell)
 }

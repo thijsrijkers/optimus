@@ -7,7 +7,7 @@ func keyToBytes(e key.Event) []byte {
 	ctrl := e.Modifiers.Contain(key.ModCtrl)
 	shift := e.Modifiers.Contain(key.ModShift)
 	_ = shift
- 
+
 	// Named keys
 	switch e.Name {
 	case key.NameReturn, key.NameEnter:
@@ -50,7 +50,7 @@ func keyToBytes(e key.Event) []byte {
 	case key.NameF5:
 		return []byte{0x1B, '[', '1', '5', '~'}
 	}
- 
+
 	// Ctrl+letter, control code
 	if ctrl && len(e.Name) == 1 {
 		c := e.Name[0]
@@ -73,11 +73,6 @@ func keyToBytes(e key.Event) []byte {
 			return []byte{0x1F}
 		}
 	}
- 
-	// Printable character
-	if len(e.Name) == 1 {
-		return []byte(e.Name)
-	}
- 
+
 	return nil
 }

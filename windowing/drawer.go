@@ -15,7 +15,7 @@ import (
 	"gioui.org/widget/material"
 )
 
-func drawCells(context layout.Context, terminal *terminal.Terminal, theme *material.Theme) {
+func drawCells(context layout.Context, terminal *terminal.Terminal, theme *material.Theme, cellW, cellH int) {
 	buf := terminal.Buffer()
 	cols := buf.Cols()
 	rows := buf.Rows()
@@ -53,13 +53,13 @@ func drawCells(context layout.Context, terminal *terminal.Terminal, theme *mater
 				if cell.Attr.Reverse {
 					fg = cell.Attr.BG
 				}
-				glyph(context, theme, cell.Char, x, y, fg, cell.Attr.Bold)
+				glyph(context, theme, cell.Char, x, y, fg, cell.Attr.Bold, cellW, cellH)
 			}
 		}
 	}
 }
 
-func glyph(context layout.Context, theme *material.Theme, r rune, x, y int, foreground color.RGBA, bold bool) {
+func glyph(context layout.Context, theme *material.Theme, r rune, x, y int, foreground color.RGBA, bold bool, cellW, cellH int) {
 	// Encode the rune as a  for the label widget.
 	var buf [4]byte
 	n := utf8.EncodeRune(buf[:], r)
@@ -74,6 +74,7 @@ func glyph(context layout.Context, theme *material.Theme, r rune, x, y int, fore
 	context.Constraints = layout.Exact(image.Point{X: cellW, Y: cellH})
 
 	label := material.Label(theme, unit.Sp(fontSize), str)
+	label.Font.Typeface = fontFamily
 	label.Color = fgNRGBA
 	if bold {
 		label.Font.Weight = font.Bold

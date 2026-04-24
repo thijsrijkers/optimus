@@ -10,22 +10,33 @@ import (
 	"optimus/terminal"
 
 	"gioui.org/app"
-	"gioui.org/font/gofont"
-	"gioui.org/io/event"
+	ioevent "gioui.org/io/event"
 	"gioui.org/io/key"
+	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/paint"
-	"gioui.org/text"
 	"gioui.org/widget/material"
 )
 
 const (
-	fontSize  = 14 
-	cellW     = 8   
-	cellH     = 18 
-	initCols  = 80
-	initRows  = 24
+	fontSize   = 13
+	fontFamily = "Menlo"
+	initCols   = 80
+	initRows   = 24
 )
+
+func cellMetrics(context layout.Context) (cellW, cellH int) {
+	fontPx := context.Sp(fontSize)
+	if fontPx < 12 {
+		fontPx = 12
+	}
+	cellH = fontPx + 4
+	cellW = (fontPx * 3) / 5
+	if cellW < 8 {
+		cellW = 8
+	}
+	return cellW, cellH
+}
 
 func CreateWindow(shell string) {
 	go func() {
@@ -41,16 +52,17 @@ func CreateWindow(shell string) {
 
 func eventLoop(window *app.Window, shell string) error {
 	var operationList op.Ops
+	keyboardTag := new(struct{})
 
 	pty, err := pty.New(shell, initCols, initRows)
 	if err != nil {
 		return err
 	}
 	defer pty.Close()
- 
+
 	terminal := terminal.New(initCols, initRows)
-	var mu sync.Mutex 
- 
+	var mu sync.Mutex
+
 	go func() {
 		buf := make([]byte, 4096)
 		for {
@@ -61,12 +73,11 @@ func eventLoop(window *app.Window, shell string) error {
 			mu.Lock()
 			terminal.Write(buf[:n])
 			mu.Unlock()
-			window.Invalidate() 
+			window.Invalidate()
 		}
 	}()
- 
+
 	theme := material.NewTheme()
-	theme.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
 
 	_ = shell
 	for {
@@ -75,20 +86,38 @@ func eventLoop(window *app.Window, shell string) error {
 			return event.Err
 		case app.FrameEvent:
 			context := app.NewContext(&operationList, event)
-      
+			ioevent.Op(context.Ops, keyboardTag)
+			if !context.Focused(keyboardTag) {
+				context.Execute(key.FocusCmd{Tag: keyboardTag})
+			}
+			cellW, cellH := cellMetrics(context)
+
 			// Keyboard events
 			for {
-				keyboardEvent, ok := context.Event(key.Filter{})
+				keyboardEvent, ok := context.Event(
+					key.Filter{
+						Focus:    keyboardTag,
+						Optional: key.ModCtrl | key.ModShift | key.ModAlt | key.ModSuper | key.ModCommand,
+					},
+					key.FocusFilter{Target: keyboardTag},
+				)
 				if !ok {
 					break
 				}
-				if keyEvent, ok := keyboardEvent.(key.Event); ok && keyEvent.State == key.Press {
-					if seq := keyToBytes(keyEvent); seq != nil {
-						pty.Write(seq)
+				switch ev := keyboardEvent.(type) {
+				case key.Event:
+					if ev.State == key.Press {
+						if seq := keyToBytes(ev); seq != nil {
+							pty.Write(seq)
+						}
+					}
+				case key.EditEvent:
+					if ev.Text != "" {
+						pty.Write([]byte(ev.Text))
 					}
 				}
 			}
- 
+
 			// Drawing to screen
 			cols := context.Constraints.Max.X / cellW
 			rows := context.Constraints.Max.Y / cellH
@@ -102,16 +131,16 @@ func eventLoop(window *app.Window, shell string) error {
 			terminal.Resize(cols, rows)
 			mu.Unlock()
 			pty.Resize(cols, rows)
- 
-			paint.Fill(&operationList, color.NRGBA{R: 0x1E, G: 0x1E, B: 0x1E, A: 0xFF})
- 
+
+			paint.Fill(&operationList, color.NRGBA{R: 0x28, G: 0x2C, B: 0x34, A: 0xFF})
+
 			mu.Lock()
-			drawCells(context, terminal, theme)
+			drawCells(context, terminal, theme, cellW, cellH)
 			mu.Unlock()
- 
+
 			event.Frame(context.Ops)
 		}
 	}
 }
 
-var _ event.Filter = key.Filter{}
+var _ ioevent.Filter = key.Filter{}

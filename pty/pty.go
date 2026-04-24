@@ -17,6 +17,7 @@ func New(shell string, cols, rows int) (*PTY, error) {
 	cmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
 		"COLORTERM=truecolor",
+		"TERM_PROGRAM=optimus",
 	)
 
 	master, err := pty.StartWithSize(cmd, &pty.Winsize{
