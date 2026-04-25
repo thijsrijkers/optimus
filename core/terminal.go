@@ -49,6 +49,10 @@ func (terminal *Terminal) MouseProtocol() MouseProtocol {
 
 func (terminal *Terminal) Title() string { return terminal.title }
 
+func (terminal *Terminal) UsingAltScreen() bool {
+	return terminal.buf.UsingAltScreen()
+}
+
 func (terminal *Terminal) Write(data []byte) {
 	for _, b := range data {
 		terminal.feedByte(b)

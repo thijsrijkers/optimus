@@ -94,10 +94,16 @@ func Run(window *app.Window, shell string) error {
 			paint.Fill(&operationList, color.NRGBA{R: 0x28, G: 0x2C, B: 0x34, A: 0xFF})
 			tabBarH, hits := drawTabBar(context, theme, tabManager.List())
 			tabHits = hits
+			suppressNextEditTab := false
 
 			// Keyboard events
 			for {
 				keyboardEvent, ok := context.Event(
+					key.Filter{
+						Focus:    keyboardTag,
+						Name:     key.NameTab,
+						Optional: key.ModCtrl | key.ModShift | key.ModAlt | key.ModSuper | key.ModCommand,
+					},
 					key.Filter{
 						Focus:    keyboardTag,
 						Optional: key.ModCtrl | key.ModShift | key.ModAlt | key.ModSuper | key.ModCommand,
@@ -109,6 +115,7 @@ func Run(window *app.Window, shell string) error {
 						ScrollX: pointer.ScrollRange{Min: -1 << 20, Max: 1 << 20},
 						ScrollY: pointer.ScrollRange{Min: -1 << 20, Max: 1 << 20},
 					},
+					transfer.TargetFilter{Target: clipboardTag, Type: "application/text"},
 					transfer.TargetFilter{Target: clipboardTag, Type: "text/plain"},
 				)
 				if !ok {
@@ -117,6 +124,22 @@ func Run(window *app.Window, shell string) error {
 				switch ev := keyboardEvent.(type) {
 				case key.Event:
 					if ev.State == key.Press {
+						if ev.Name == key.NameTab && ev.Modifiers.Contain(key.ModCtrl) {
+							if !term.UsingAltScreen() {
+								if seq := keyToBytes(ev); seq != nil {
+									session.WriteInput(seq)
+									suppressNextEditTab = true
+								}
+								continue
+							}
+						}
+						if ev.Name == key.NameTab && !isNextTabShortcut(ev) && !isPrevTabShortcut(ev) {
+							if seq := keyToBytes(ev); seq != nil {
+								session.WriteInput(seq)
+								suppressNextEditTab = true
+							}
+							continue
+						}
 						if isZoomInShortcut(ev) {
 							if uiFontSize < 28 {
 								uiFontSize++
@@ -158,7 +181,7 @@ func Run(window *app.Window, shell string) error {
 								text := selectionText(term.Buffer(), selStartCol, selStartRow, selEndCol, selEndRow)
 								session.Unlock()
 								if text != "" {
-									context.Execute(clipboard.WriteCmd{Type: "text/plain", Data: io.NopCloser(strings.NewReader(text))})
+									context.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(text))})
 								}
 							}
 							continue
@@ -173,10 +196,18 @@ func Run(window *app.Window, shell string) error {
 					}
 				case key.EditEvent:
 					if ev.Text != "" {
+						if ev.Text == "\t" {
+							if suppressNextEditTab {
+								suppressNextEditTab = false
+								continue
+							}
+							session.WriteInput([]byte{'\t'})
+							continue
+						}
 						session.WriteInput([]byte(ev.Text))
 					}
 				case transfer.DataEvent:
-					if ev.Type == "text/plain" {
+					if ev.Type == "application/text" || ev.Type == "text/plain" {
 						r := ev.Open()
 						data, err := io.ReadAll(r)
 						r.Close()
@@ -250,7 +281,7 @@ func Run(window *app.Window, shell string) error {
 							if text != "" {
 								hasSelection = true
 								context.Execute(clipboard.WriteCmd{
-									Type: "text/plain",
+									Type: "application/text",
 									Data: io.NopCloser(strings.NewReader(text)),
 								})
 							} else {

@@ -23,3 +23,7 @@ func (b *Buffer) SwitchToPrimaryScreen() {
 	b.ResetScrollRegion()
 	b.usingAltScreen = false
 }
+
+func (b *Buffer) UsingAltScreen() bool {
+	return b.usingAltScreen
+}

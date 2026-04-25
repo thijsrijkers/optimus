@@ -22,9 +22,6 @@ func keyToBytes(e key.Event) []byte {
 	case key.NameDeleteForward:
 		return []byte{0x1B, '[', '3', '~'}
 	case key.NameTab:
-		if ctrl {
-			return nil
-		}
 		return []byte{'\t'}
 	case key.NameEscape:
 		return []byte{0x1B}
@@ -83,23 +80,23 @@ func keyToBytes(e key.Event) []byte {
 }
 
 func isCopyShortcut(e key.Event) bool {
-	if !e.Modifiers.Contain(key.ModShortcut) {
-		return false
+	if strings.EqualFold(string(e.Name), "c") {
+		if runtime.GOOS == "darwin" {
+			return e.Modifiers.Contain(key.ModShortcut) || e.Modifiers.Contain(key.ModCommand) || e.Modifiers.Contain(key.ModSuper)
+		}
+		return e.Modifiers.Contain(key.ModShift) && (e.Modifiers.Contain(key.ModShortcut) || e.Modifiers.Contain(key.ModCtrl))
 	}
-	if runtime.GOOS != "darwin" && !e.Modifiers.Contain(key.ModShift) {
-		return false
-	}
-	return strings.EqualFold(string(e.Name), "c")
+	return false
 }
 
 func isPasteShortcut(e key.Event) bool {
-	if !e.Modifiers.Contain(key.ModShortcut) {
-		return false
+	if strings.EqualFold(string(e.Name), "v") {
+		if runtime.GOOS == "darwin" {
+			return e.Modifiers.Contain(key.ModShortcut) || e.Modifiers.Contain(key.ModCommand) || e.Modifiers.Contain(key.ModSuper)
+		}
+		return e.Modifiers.Contain(key.ModShift) && (e.Modifiers.Contain(key.ModShortcut) || e.Modifiers.Contain(key.ModCtrl))
 	}
-	if runtime.GOOS != "darwin" && !e.Modifiers.Contain(key.ModShift) {
-		return false
-	}
-	return strings.EqualFold(string(e.Name), "v")
+	return false
 }
 
 func isNewTabShortcut(e key.Event) bool {
@@ -120,6 +117,9 @@ func isNextTabShortcut(e key.Event) bool {
 	if !e.Modifiers.Contain(key.ModShortcut) {
 		return false
 	}
+	if e.Modifiers.Contain(key.ModCtrl) {
+		return false
+	}
 	if e.Modifiers.Contain(key.ModShift) {
 		return false
 	}
@@ -128,6 +128,9 @@ func isNextTabShortcut(e key.Event) bool {
 
 func isPrevTabShortcut(e key.Event) bool {
 	if !e.Modifiers.Contain(key.ModShortcut) || !e.Modifiers.Contain(key.ModShift) {
+		return false
+	}
+	if e.Modifiers.Contain(key.ModCtrl) {
 		return false
 	}
 	return e.Name == key.NameTab
